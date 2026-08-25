@@ -142,7 +142,7 @@ if audio is not None:
                         "role": "system",
                         "content": (
                             "You are a helpful AI voice assistant. "
-                            "Give clear, concise and useful answers."
+                            "Give complete, useful answers. Explain things clearly and do not stop prematurely."
                         )
                     },
 
@@ -152,7 +152,7 @@ if audio is not None:
                     }
                 ],
 
-                max_tokens=300
+                max_tokens=1000
             )
 
 
