@@ -81,9 +81,9 @@ if audio is not None:
     # Show recorded audio
     st.audio(audio)
 
-    # --------------------------------------
+    # ======================================
     # SPEECH TO TEXT
-    # --------------------------------------
+    # ======================================
 
     with st.spinner("🎧 Understanding your voice..."):
 
@@ -105,9 +105,9 @@ if audio is not None:
             st.stop()
 
 
-    # --------------------------------------
+    # ======================================
     # CHECK TRANSCRIPTION
-    # --------------------------------------
+    # ======================================
 
     if not user_text:
 
@@ -177,35 +177,3 @@ if audio is not None:
     st.write("### 🤖 AI:")
 
     st.write(answer)
-
-
-    # ======================================
-    # TEXT TO SPEECH
-    # ======================================
-
-    with st.spinner("🔊 Creating AI voice..."):
-
-        try:
-
-            audio_output = client.text_to_speech(
-
-                text=answer,
-
-                model="espnet/kan-bayashi_ljspeech_vits"
-
-            )
-
-
-            st.write("### 🔊 AI Voice:")
-
-            st.audio(
-                audio_output,
-                format="audio/wav"
-            )
-
-
-        except Exception as e:
-
-            st.error("Text-to-speech failed.")
-
-            st.code(str(e))
