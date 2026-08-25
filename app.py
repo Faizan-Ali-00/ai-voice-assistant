@@ -135,7 +135,7 @@ if audio is not None:
 
             response = client.chat.completions.create(
 
-                model="Qwen/Qwen2.5-7B-Instruct-1M",
+                model="openai/gpt-oss-120b",
 
                 messages=[
                     {
