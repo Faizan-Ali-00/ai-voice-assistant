@@ -1,7 +1,5 @@
 import os
-import tempfile
-from pathlib import Path
-
+import requests
 import streamlit as st
 from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
@@ -9,7 +7,7 @@ from huggingface_hub import InferenceClient
 # Load environment variables
 load_dotenv()
 
-# Get Hugging Face token
+# Hugging Face token
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 # Page settings
@@ -19,78 +17,122 @@ st.set_page_config(
     layout="centered"
 )
 
-# Title
 st.title("🎙️ AI Voice Assistant")
-st.write("Speak to your AI assistant using your phone microphone.")
+st.write("Speak to your AI assistant using your phone.")
 
 # Check token
 if not HF_TOKEN:
     st.error("Hugging Face token not found.")
     st.stop()
 
-# Hugging Face client
+
+# --------------------------------
+# Hugging Face AI client
+# --------------------------------
+
 client = InferenceClient(
     provider="hf-inference",
     api_key=HF_TOKEN
 )
 
+
+# --------------------------------
 # Microphone
-audio = st.audio_input("🎤 Speak to your assistant")
+# --------------------------------
+
+audio = st.audio_input(
+    "🎤 Speak to your assistant",
+    sample_rate=16000
+)
+
+
+# --------------------------------
+# Process audio
+# --------------------------------
 
 if audio is not None:
 
-    # Get audio format from browser
-    audio_type = audio.type or "audio/wav"
+    st.audio(audio)
 
-    if "webm" in audio_type:
-        extension = ".webm"
-    elif "mpeg" in audio_type or "mp3" in audio_type:
-        extension = ".mp3"
-    elif "ogg" in audio_type:
-        extension = ".ogg"
-    else:
-        extension = ".wav"
+    with st.spinner("🎧 Understanding your voice..."):
 
-    # Save recording as a real audio file
-    temp_file = None
+        try:
 
-    try:
-        with tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix=extension
-        ) as f:
-            f.write(audio.getvalue())
-            temp_file = f.name
+            # Get audio bytes
+            audio_bytes = audio.getvalue()
 
-        # Show recorded audio
-        st.audio(audio)
-
-        # Speech to text
-        with st.spinner("🎧 Understanding your voice..."):
-
-            result = client.automatic_speech_recognition(
-                temp_file,
-                model="openai/whisper-large-v3"
+            # Hugging Face ASR endpoint
+            url = (
+                "https://router.huggingface.co/"
+                "hf-inference/models/"
+                "openai/whisper-large-v3"
             )
 
-            user_text = result.text
+            headers = {
+                "Authorization": f"Bearer {HF_TOKEN}",
+                "Content-Type": "audio/wav"
+            }
 
-        st.success("Speech recognized!")
+            # Send audio with explicit MIME type
+            response = requests.post(
+                url,
+                headers=headers,
+                data=audio_bytes,
+                timeout=120
+            )
 
-        st.write("### 📝 You said:")
-        st.write(user_text)
+            # Check response
+            if response.status_code != 200:
 
-        # AI response
-        with st.spinner("🤖 AI is thinking..."):
+                st.error("Speech recognition failed.")
+
+                st.code(
+                    f"Status: {response.status_code}\n\n"
+                    f"{response.text}"
+                )
+
+                st.stop()
+
+            result = response.json()
+
+            # Get transcript
+            user_text = result.get("text", "")
+
+            if not user_text:
+                st.warning("I couldn't understand the audio.")
+                st.stop()
+
+            st.success("Speech recognized!")
+
+            st.write("### 📝 You said:")
+            st.write(user_text)
+
+        except Exception as e:
+
+            st.error("Speech recognition error.")
+            st.code(str(e))
+
+            st.stop()
+
+
+    # --------------------------------
+    # AI response
+    # --------------------------------
+
+    with st.spinner("🤖 AI is thinking..."):
+
+        try:
 
             response = client.chat.completions.create(
+
                 model="Qwen/Qwen2.5-7B-Instruct",
+
                 messages=[
                     {
                         "role": "system",
                         "content": (
                             "You are a helpful AI voice assistant. "
-                            "Give clear and concise answers."
+                            "Give clear, simple and concise answers."
                         )
                     },
                     {
@@ -98,19 +140,16 @@ if audio is not None:
                         "content": user_text
                     }
                 ],
+
                 max_tokens=300
             )
 
             answer = response.choices[0].message.content
 
-        st.write("### 🤖 AI:")
-        st.write(answer)
+            st.write("### 🤖 AI:")
+            st.write(answer)
 
-    except Exception as e:
-        st.error("Something went wrong.")
-        st.code(str(e))
+        except Exception as e:
 
-    finally:
-        # Delete temporary audio file
-        if temp_file and os.path.exists(temp_file):
-            os.remove(temp_file)
+            st.error("AI response failed.")
+            st.code(str(e))
