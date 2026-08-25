@@ -1,44 +1,72 @@
 import os
-import requests
+import tempfile
+
 import streamlit as st
 from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
 
+
+# ---------------------------------------
 # Load environment variables
+# ---------------------------------------
+
 load_dotenv()
 
-# Hugging Face token
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-# Page settings
+
+# ---------------------------------------
+# Page configuration
+# ---------------------------------------
+
 st.set_page_config(
     page_title="AI Voice Assistant",
     page_icon="🎙️",
     layout="centered"
 )
 
-st.title("🎙️ AI Voice Assistant")
-st.write("Speak to your AI assistant using your phone.")
 
-# Check token
+# ---------------------------------------
+# Title
+# ---------------------------------------
+
+st.title("🎙️ AI Voice Assistant")
+
+st.write(
+    "Speak using your phone microphone and "
+    "get an AI response."
+)
+
+
+# ---------------------------------------
+# Check Hugging Face token
+# ---------------------------------------
+
 if not HF_TOKEN:
+
     st.error("Hugging Face token not found.")
+
+    st.info(
+        "Make sure your .env file contains:\n\n"
+        "HF_TOKEN=your_token"
+    )
+
     st.stop()
 
 
-# --------------------------------
-# Hugging Face AI client
-# --------------------------------
+# ---------------------------------------
+# Hugging Face client
+# ---------------------------------------
 
 client = InferenceClient(
-    provider="hf-inference",
+    provider="auto",
     api_key=HF_TOKEN
 )
 
 
-# --------------------------------
+# ---------------------------------------
 # Microphone
-# --------------------------------
+# ---------------------------------------
 
 audio = st.audio_input(
     "🎤 Speak to your assistant",
@@ -46,82 +74,64 @@ audio = st.audio_input(
 )
 
 
-# --------------------------------
-# Process audio
-# --------------------------------
+# ---------------------------------------
+# Process voice
+# ---------------------------------------
 
 if audio is not None:
 
     st.audio(audio)
 
-    with st.spinner("🎧 Understanding your voice..."):
+    temp_file = None
 
-        try:
+    try:
 
-            # Get audio bytes
-            audio_bytes = audio.getvalue()
+        # Create temporary audio file
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".wav"
+        ) as file:
 
-            # Hugging Face ASR endpoint
-            url = (
-                "https://router.huggingface.co/"
-                "hf-inference/models/"
-                "openai/whisper-large-v3"
+            file.write(audio.getvalue())
+
+            temp_file = file.name
+
+
+        # ---------------------------------------
+        # Speech → Text
+        # ---------------------------------------
+
+        with st.spinner("🎧 Understanding your voice..."):
+
+            transcription = client.automatic_speech_recognition(
+                audio=temp_file,
+                model="openai/whisper-large-v3"
             )
 
-            headers = {
-                "Authorization": f"Bearer {HF_TOKEN}",
-                "Content-Type": "audio/wav"
-            }
+        user_text = transcription.text.strip()
 
-            # Send audio with explicit MIME type
-            response = requests.post(
-                url,
-                headers=headers,
-                data=audio_bytes,
-                timeout=120
+
+        if not user_text:
+
+            st.warning(
+                "I couldn't understand what you said."
             )
-
-            # Check response
-            if response.status_code != 200:
-
-                st.error("Speech recognition failed.")
-
-                st.code(
-                    f"Status: {response.status_code}\n\n"
-                    f"{response.text}"
-                )
-
-                st.stop()
-
-            result = response.json()
-
-            # Get transcript
-            user_text = result.get("text", "")
-
-            if not user_text:
-                st.warning("I couldn't understand the audio.")
-                st.stop()
-
-            st.success("Speech recognized!")
-
-            st.write("### 📝 You said:")
-            st.write(user_text)
-
-        except Exception as e:
-
-            st.error("Speech recognition error.")
-            st.code(str(e))
 
             st.stop()
 
 
-    # --------------------------------
-    # AI response
-    # --------------------------------
+        st.success("Speech recognized!")
 
-    with st.spinner("🤖 AI is thinking..."):
+        st.write("### 📝 You said:")
 
-        try:
+        st.write(user_text)
+
+
+        # ---------------------------------------
+        # Text → AI response
+        # ---------------------------------------
+
+        with st.spinner("🤖 AI is thinking..."):
 
             response = client.chat.completions.create(
 
@@ -132,9 +142,10 @@ if audio is not None:
                         "role": "system",
                         "content": (
                             "You are a helpful AI voice assistant. "
-                            "Give clear, simple and concise answers."
+                            "Give clear, concise and useful answers."
                         )
                     },
+
                     {
                         "role": "user",
                         "content": user_text
@@ -144,12 +155,29 @@ if audio is not None:
                 max_tokens=300
             )
 
-            answer = response.choices[0].message.content
 
-            st.write("### 🤖 AI:")
-            st.write(answer)
+        answer = response.choices[0].message.content
 
-        except Exception as e:
 
-            st.error("AI response failed.")
-            st.code(str(e))
+        # ---------------------------------------
+        # Display AI response
+        # ---------------------------------------
+
+        st.write("### 🤖 AI:")
+
+        st.write(answer)
+
+
+    except Exception as error:
+
+        st.error("Something went wrong.")
+
+        st.code(str(error))
+
+
+    finally:
+
+        # Remove temporary file
+        if temp_file and os.path.exists(temp_file):
+
+            os.remove(temp_file)
