@@ -1,23 +1,22 @@
 import os
-import tempfile
 
 import streamlit as st
 from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
 
 
-# ---------------------------------------
-# Load environment variables
-# ---------------------------------------
+# ==========================================
+# LOAD ENVIRONMENT
+# ==========================================
 
 load_dotenv()
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 
-# ---------------------------------------
-# Page configuration
-# ---------------------------------------
+# ==========================================
+# PAGE SETTINGS
+# ==========================================
 
 st.set_page_config(
     page_title="AI Voice Assistant",
@@ -26,21 +25,20 @@ st.set_page_config(
 )
 
 
-# ---------------------------------------
-# Title
-# ---------------------------------------
+# ==========================================
+# TITLE
+# ==========================================
 
 st.title("🎙️ AI Voice Assistant")
 
 st.write(
-    "Speak using your phone microphone and "
-    "get an AI response."
+    "Speak to the assistant using your microphone."
 )
 
 
-# ---------------------------------------
-# Check Hugging Face token
-# ---------------------------------------
+# ==========================================
+# CHECK HUGGING FACE TOKEN
+# ==========================================
 
 if not HF_TOKEN:
 
@@ -54,9 +52,9 @@ if not HF_TOKEN:
     st.stop()
 
 
-# ---------------------------------------
-# Hugging Face client
-# ---------------------------------------
+# ==========================================
+# HUGGING FACE CLIENT
+# ==========================================
 
 client = InferenceClient(
     provider="auto",
@@ -64,9 +62,9 @@ client = InferenceClient(
 )
 
 
-# ---------------------------------------
-# Microphone
-# ---------------------------------------
+# ==========================================
+# MICROPHONE
+# ==========================================
 
 audio = st.audio_input(
     "🎤 Speak to your assistant",
@@ -74,64 +72,66 @@ audio = st.audio_input(
 )
 
 
-# ---------------------------------------
-# Process voice
-# ---------------------------------------
+# ==========================================
+# PROCESS AUDIO
+# ==========================================
 
 if audio is not None:
 
+    # Show recorded audio
     st.audio(audio)
 
-    temp_file = None
+    # --------------------------------------
+    # SPEECH TO TEXT
+    # --------------------------------------
 
-    try:
+    with st.spinner("🎧 Understanding your voice..."):
 
-        # Create temporary audio file
-        with tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix=".wav"
-        ) as file:
-
-            file.write(audio.getvalue())
-
-            temp_file = file.name
-
-
-        # ---------------------------------------
-        # Speech → Text
-        # ---------------------------------------
-
-        with st.spinner("🎧 Understanding your voice..."):
+        try:
 
             transcription = client.automatic_speech_recognition(
-                audio=temp_file,
+                audio=audio.getvalue(),
                 model="openai/whisper-large-v3"
             )
 
-        user_text = transcription.text.strip()
+            user_text = transcription.text.strip()
 
+        except Exception as e:
 
-        if not user_text:
+            st.error("Speech recognition failed.")
 
-            st.warning(
-                "I couldn't understand what you said."
-            )
+            st.code(str(e))
 
             st.stop()
 
 
-        st.success("Speech recognized!")
+    # --------------------------------------
+    # CHECK TRANSCRIPTION
+    # --------------------------------------
 
-        st.write("### 📝 You said:")
+    if not user_text:
 
-        st.write(user_text)
+        st.warning(
+            "I couldn't understand what you said."
+        )
+
+        st.stop()
 
 
-        # ---------------------------------------
-        # Text → AI response
-        # ---------------------------------------
+    st.success("Speech recognized!")
 
-        with st.spinner("🤖 AI is thinking..."):
+    st.write("### 📝 You said:")
+
+    st.write(user_text)
+
+
+    # ======================================
+    # AI RESPONSE
+    # ======================================
+
+    with st.spinner("🤖 AI is thinking..."):
+
+        try:
 
             response = client.chat.completions.create(
 
@@ -142,7 +142,9 @@ if audio is not None:
                         "role": "system",
                         "content": (
                             "You are a helpful AI voice assistant. "
-                            "Give complete, useful answers. Explain things clearly and do not stop prematurely."
+                            "Give complete, useful and accurate answers. "
+                            "Explain things clearly and do not stop "
+                            "prematurely."
                         )
                     },
 
@@ -156,28 +158,54 @@ if audio is not None:
             )
 
 
-        answer = response.choices[0].message.content
+            answer = response.choices[0].message.content
 
 
-        # ---------------------------------------
-        # Display AI response
-        # ---------------------------------------
+        except Exception as e:
 
-        st.write("### 🤖 AI:")
+            st.error("AI response failed.")
 
-        st.write(answer)
+            st.code(str(e))
 
-
-    except Exception as error:
-
-        st.error("Something went wrong.")
-
-        st.code(str(error))
+            st.stop()
 
 
-    finally:
+    # ======================================
+    # SHOW AI RESPONSE
+    # ======================================
 
-        # Remove temporary file
-        if temp_file and os.path.exists(temp_file):
+    st.write("### 🤖 AI:")
 
-            os.remove(temp_file)
+    st.write(answer)
+
+
+    # ======================================
+    # TEXT TO SPEECH
+    # ======================================
+
+    with st.spinner("🔊 Creating AI voice..."):
+
+        try:
+
+            audio_output = client.text_to_speech(
+
+                text=answer,
+
+                model="espnet/kan-bayashi_ljspeech_vits"
+
+            )
+
+
+            st.write("### 🔊 AI Voice:")
+
+            st.audio(
+                audio_output,
+                format="audio/wav"
+            )
+
+
+        except Exception as e:
+
+            st.error("Text-to-speech failed.")
+
+            st.code(str(e))
