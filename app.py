@@ -16,12 +16,11 @@ APP_NAME = "Aria"
 APP_TAGLINE = "Your Voice, Understood."
 
 # ==========================================
-# LOGO — embedded directly as SVG strings
-# (no external files needed; keeps the repo to a single script)
+# LOGO — bigger wordmark, bolder tagline
 # ==========================================
 
 LOGO_SVG = """
-<svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <radialGradient id="orbGrad" cx="35%" cy="30%" r="75%">
       <stop offset="0%" stop-color="#d4c5ff"/>
@@ -35,7 +34,7 @@ LOGO_SVG = """
       <stop offset="100%" stop-color="#6BD6FF"/>
     </linearGradient>
     <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feGaussianBlur stdDeviation="10" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -43,41 +42,41 @@ LOGO_SVG = """
     </filter>
   </defs>
 
-  <rect width="560" height="200" fill="#0b0715"/>
+  <rect width="720" height="240" fill="#0b0715" rx="24"/>
 
   <!-- Glowing orb -->
   <g filter="url(#glow)">
-    <circle cx="100" cy="100" r="66" fill="url(#orbGrad)"/>
+    <circle cx="130" cy="120" r="82" fill="url(#orbGrad)"/>
   </g>
 
-  <!-- Subtle inner ring -->
-  <circle cx="100" cy="100" r="58" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1.5"/>
+  <!-- Inner ring -->
+  <circle cx="130" cy="120" r="72" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="2"/>
 
-  <!-- Voice bars (soundwave) -->
-  <g stroke="#f5f1ff" stroke-width="6" stroke-linecap="round" opacity="0.95">
-    <line x1="68"  y1="92"  x2="68"  y2="108"/>
-    <line x1="82"  y1="78"  x2="82"  y2="122"/>
-    <line x1="96"  y1="62"  x2="96"  y2="138"/>
-    <line x1="110" y1="76"  x2="110" y2="124"/>
-    <line x1="124" y1="88"  x2="124" y2="112"/>
+  <!-- Voice bars -->
+  <g stroke="#f5f1ff" stroke-width="7" stroke-linecap="round" opacity="0.95">
+    <line x1="88"  y1="110" x2="88"  y2="130"/>
+    <line x1="106" y1="92"  x2="106" y2="148"/>
+    <line x1="124" y1="72"  x2="124" y2="168"/>
+    <line x1="142" y1="90"  x2="142" y2="150"/>
+    <line x1="160" y1="106" x2="160" y2="134"/>
   </g>
 
-  <!-- Wordmark "Aria" -->
-  <text x="200" y="116"
+  <!-- Wordmark "Aria" — BIGGER -->
+  <text x="250" y="135"
         font-family="'Inter','Segoe UI',Arial,Helvetica,sans-serif"
-        font-size="78" font-weight="900"
+        font-size="110" font-weight="900"
         fill="url(#textGrad)"
-        letter-spacing="-1">Aria</text>
+        letter-spacing="-3">Aria</text>
 
-  <!-- Tagline -->
-  <text x="205" y="148"
+  <!-- Tagline — smaller than Aria, more spaced -->
+  <text x="256" y="180"
         font-family="'Inter','Segoe UI',Arial,Helvetica,sans-serif"
-        font-size="17" font-weight="500"
+        font-size="18" font-weight="500"
         fill="#b8b2d6"
-        letter-spacing="2">YOUR VOICE, UNDERSTOOD.</text>
+        letter-spacing="3.5">YOUR VOICE, UNDERSTOOD.</text>
 
-  <!-- Small accent dot -->
-  <circle cx="325" cy="110" r="5" fill="#FF6BD6" opacity="0.9"/>
+  <!-- Accent dot -->
+  <circle cx="450" cy="128" r="7" fill="#FF6BD6" opacity="0.95"/>
 </svg>
 """
 
@@ -98,19 +97,11 @@ ICON_SVG = """
       </feMerge>
     </filter>
   </defs>
-
-  <!-- Rounded background -->
   <rect width="200" height="200" rx="44" fill="#0b0715"/>
-
-  <!-- Glowing orb -->
   <g filter="url(#glow2)">
     <circle cx="100" cy="100" r="74" fill="url(#orbGrad2)"/>
   </g>
-
-  <!-- Subtle inner ring -->
   <circle cx="100" cy="100" r="64" fill="none" stroke="#ffffff" stroke-opacity="0.15" stroke-width="2"/>
-
-  <!-- Voice bars -->
   <g stroke="#f5f1ff" stroke-width="9" stroke-linecap="round" opacity="0.95">
     <line x1="62"  y1="90"  x2="62"  y2="110"/>
     <line x1="80"  y1="70"  x2="80"  y2="130"/>
@@ -123,7 +114,6 @@ ICON_SVG = """
 
 
 def svg_to_data_uri(svg_string: str) -> str:
-    """Convert an inline SVG string to a base64 data URI for embedding in <img> tags."""
     encoded = base64.b64encode(svg_string.strip().encode("utf-8")).decode("utf-8")
     return f"data:image/svg+xml;base64,{encoded}"
 
@@ -154,7 +144,7 @@ st.set_page_config(
 # ==========================================
 
 if "history" not in st.session_state:
-    st.session_state.history = []          # list of {id, time, question, answer}
+    st.session_state.history = []
 if "model" not in st.session_state:
     st.session_state.model = "openai/gpt-oss-120b"
 if "max_tokens" not in st.session_state:
@@ -171,9 +161,9 @@ if "system_prompt" not in st.session_state:
 if "asr_model" not in st.session_state:
     st.session_state.asr_model = "openai/whisper-large-v3"
 if "view" not in st.session_state:
-    st.session_state.view = "assistant"    # "assistant" or "history"
+    st.session_state.view = "assistant"
 if "status" not in st.session_state:
-    st.session_state.status = "idle"       # idle | listening | thinking
+    st.session_state.status = "idle"
 
 # ==========================================
 # STYLE
@@ -189,40 +179,35 @@ st.markdown(
         color: #EDEBFF;
     }
 
+    /* ---------- Header ---------- */
     .aria-header {
-        text-align: center;
-        padding: 1.2rem 0 0.4rem 0;
+        display: flex;
+        justify-content: center;
+        padding: 1.5rem 0 0.8rem 0;
     }
-    .aria-title {
-        font-size: 2.4rem;
-        font-weight: 800;
-        background: linear-gradient(90deg, #8A6BFF, #FF6BD6, #6BD6FF);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: 1px;
-        margin-bottom: 0;
-    }
-    .aria-tagline {
-        color: #b8b2d6;
-        font-size: 0.95rem;
-        margin-top: -6px;
+    .aria-header img {
+        width: 100%;
+        max-width: 520px;
+        height: auto;
+        filter: drop-shadow(0 20px 60px rgba(150, 100, 255, 0.35));
     }
 
+    /* ---------- Orb ---------- */
     .orb-wrap {
         display: flex;
         justify-content: center;
         margin: 1.5rem 0 0.5rem 0;
     }
     .orb {
-        width: 130px;
-        height: 130px;
+        width: 140px;
+        height: 140px;
         border-radius: 50%;
         background: radial-gradient(circle at 35% 30%, #a78bff, #6b3fd9 55%, #2b1256 100%);
-        box-shadow: 0 0 30px rgba(150, 100, 255, 0.55), inset 0 0 25px rgba(255,255,255,0.15);
+        box-shadow: 0 0 40px rgba(150, 100, 255, 0.6), inset 0 0 30px rgba(255,255,255,0.18);
     }
     .orb.listening {
         animation: pulse 1.1s infinite ease-in-out;
-        box-shadow: 0 0 55px rgba(255, 100, 220, 0.75), inset 0 0 25px rgba(255,255,255,0.2);
+        box-shadow: 0 0 65px rgba(255, 100, 220, 0.8), inset 0 0 30px rgba(255,255,255,0.25);
     }
     .orb.thinking {
         animation: spin 2.2s linear infinite, glow 1.4s infinite ease-in-out;
@@ -236,24 +221,86 @@ st.markdown(
         to { filter: hue-rotate(360deg); }
     }
     @keyframes glow {
-        0%, 100% { box-shadow: 0 0 30px rgba(150,100,255,0.5); }
-        50% { box-shadow: 0 0 60px rgba(107,214,255,0.8); }
+        0%, 100% { box-shadow: 0 0 40px rgba(150,100,255,0.5); }
+        50% { box-shadow: 0 0 70px rgba(107,214,255,0.85); }
     }
 
     .status-text {
         text-align: center;
         color: #cfc9f0;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+        letter-spacing: 0.6px;
+    }
+
+    /* ---------- Voice recorder card ---------- */
+    .recorder-title {
+        text-align: center;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #e8e3ff;
+        margin: 1rem 0 0.3rem 0;
+        letter-spacing: 0.3px;
+    }
+    .recorder-hint {
+        text-align: center;
+        font-size: 0.82rem;
+        color: #8b84b5;
         margin-bottom: 1.2rem;
-        letter-spacing: 0.5px;
     }
 
+    /* Style st.audio_input container as a big centered card */
+    div[data-testid="stAudioInput"] {
+        background: linear-gradient(180deg, rgba(155,107,255,0.09) 0%, rgba(107,63,217,0.05) 100%);
+        border: 1px solid rgba(155, 107, 255, 0.28);
+        border-radius: 20px;
+        padding: 1.4rem 1.6rem !important;
+        margin: 0 auto !important;
+        max-width: 520px !important;
+        box-shadow: 0 12px 40px rgba(107, 63, 217, 0.22),
+                    inset 0 1px 0 rgba(255,255,255,0.04);
+        transition: all 0.25s ease;
+    }
+    div[data-testid="stAudioInput"]:hover {
+        border-color: rgba(155, 107, 255, 0.55);
+        box-shadow: 0 16px 50px rgba(107, 63, 217, 0.35),
+                    inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    div[data-testid="stAudioInput"] > label {
+        color: #cfc9f0 !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    /* Enlarge the record button inside the audio input */
+    div[data-testid="stAudioInput"] button {
+        width: 52px !important;
+        height: 52px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #8A6BFF 0%, #6b3fd9 100%) !important;
+        border: none !important;
+        box-shadow: 0 6px 22px rgba(138, 107, 255, 0.55) !important;
+        transition: all 0.2s ease !important;
+    }
+    div[data-testid="stAudioInput"] button:hover {
+        transform: scale(1.06) !important;
+        box-shadow: 0 10px 30px rgba(138, 107, 255, 0.75) !important;
+    }
+    div[data-testid="stAudioInput"] button svg {
+        color: #ffffff !important;
+        width: 22px !important;
+        height: 22px !important;
+    }
+
+    /* ---------- Chat bubbles ---------- */
     div[data-testid="stChatMessage"] {
-        background: rgba(255,255,255,0.04);
+        background: rgba(255,255,255,0.045);
         border-radius: 14px;
-        border: 1px solid rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.07);
+        padding: 0.9rem 1.1rem;
     }
 
+    /* ---------- Sidebar ---------- */
     section[data-testid="stSidebar"] {
         background: #0d0918;
         border-right: 1px solid rgba(255,255,255,0.06);
@@ -275,7 +322,7 @@ if not HF_TOKEN:
 client = InferenceClient(provider="auto", api_key=HF_TOKEN)
 
 # ==========================================
-# SIDEBAR — NAV + SETTINGS + HISTORY
+# SIDEBAR
 # ==========================================
 
 with st.sidebar:
@@ -348,28 +395,17 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# HEADER
+# HEADER — bigger logo
 # ==========================================
 
-if LOGO_DATA_URI:
-    st.markdown(
-        f"""
-        <div class="aria-header">
-            <img src="{LOGO_DATA_URI}" style="max-width:340px; width:100%; height:auto;">
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-else:
-    st.markdown(
-        f"""
-        <div class="aria-header">
-            <div class="aria-title">{APP_NAME}</div>
-            <div class="aria-tagline">{APP_TAGLINE}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+st.markdown(
+    f"""
+    <div class="aria-header">
+        <img src="{LOGO_DATA_URI}" alt="{APP_NAME} logo" />
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ==========================================
 # VIEW: HISTORY
@@ -391,20 +427,12 @@ if st.session_state.view == "history":
     st.stop()
 
 # ==========================================
-# VIEW: ASSISTANT (main)
+# VIEW: ASSISTANT
 # ==========================================
-
-orb_class = "orb"
-status_label = "Tap the mic and start speaking"
-if st.session_state.status == "listening":
-    orb_class = "orb listening"
-    status_label = "Listening..."
-elif st.session_state.status == "thinking":
-    orb_class = "orb thinking"
-    status_label = "Thinking..."
 
 orb_placeholder = st.empty()
 status_placeholder = st.empty()
+
 
 def render_orb(status: str):
     classes = "orb"
@@ -415,14 +443,32 @@ def render_orb(status: str):
     elif status == "thinking":
         classes = "orb thinking"
         label = "Thinking..."
-    orb_placeholder.markdown(f'<div class="orb-wrap"><div class="{classes}"></div></div>', unsafe_allow_html=True)
-    status_placeholder.markdown(f'<div class="status-text">{label}</div>', unsafe_allow_html=True)
+    orb_placeholder.markdown(
+        f'<div class="orb-wrap"><div class="{classes}"></div></div>',
+        unsafe_allow_html=True,
+    )
+    status_placeholder.markdown(
+        f'<div class="status-text">{label}</div>',
+        unsafe_allow_html=True,
+    )
+
 
 render_orb(st.session_state.status)
 
-audio = st.audio_input("🎤 Speak to Aria", sample_rate=16000)
+# Recorder card labels
+st.markdown(
+    '<div class="recorder-title">🎤 Speak to Aria</div>'
+    '<div class="recorder-hint">Click the mic · Speak · Click again to send</div>',
+    unsafe_allow_html=True,
+)
 
-# Show recent chat bubbles (last 3 exchanges) above the input result
+audio = st.audio_input(
+    "Speak to Aria",
+    sample_rate=16000,
+    label_visibility="collapsed",
+)
+
+# Recent conversation
 if st.session_state.history:
     st.markdown("#### Recent")
     for entry in st.session_state.history[-3:]:
@@ -438,7 +484,7 @@ if st.session_state.history:
 if audio is not None:
     st.audio(audio)
 
-    # ---- Speech to text ----
+    # Speech to text
     st.session_state.status = "listening"
     render_orb("listening")
 
@@ -463,7 +509,7 @@ if audio is not None:
     with st.chat_message("user", avatar="🎙️"):
         st.write(user_text)
 
-    # ---- AI response ----
+    # AI response
     st.session_state.status = "thinking"
     render_orb("thinking")
 
@@ -491,7 +537,6 @@ if audio is not None:
     with st.chat_message("assistant", avatar="✨"):
         st.write(answer)
 
-    # ---- Save to history ----
     st.session_state.history.append(
         {
             "id": str(uuid.uuid4()),
