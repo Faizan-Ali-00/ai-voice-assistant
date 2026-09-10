@@ -41,18 +41,11 @@ LOGO_SVG = """
       </feMerge>
     </filter>
   </defs>
-
   <rect width="720" height="240" fill="#0b0715" rx="24"/>
-
-  <!-- Glowing orb -->
   <g filter="url(#glow)">
     <circle cx="130" cy="120" r="82" fill="url(#orbGrad)"/>
   </g>
-
-  <!-- Inner ring -->
   <circle cx="130" cy="120" r="72" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="2"/>
-
-  <!-- Voice bars -->
   <g stroke="#f5f1ff" stroke-width="7" stroke-linecap="round" opacity="0.95">
     <line x1="88"  y1="110" x2="88"  y2="130"/>
     <line x1="106" y1="92"  x2="106" y2="148"/>
@@ -60,22 +53,16 @@ LOGO_SVG = """
     <line x1="142" y1="90"  x2="142" y2="150"/>
     <line x1="160" y1="106" x2="160" y2="134"/>
   </g>
-
-  <!-- Wordmark "Aria" — BIGGER -->
   <text x="250" y="135"
         font-family="'Inter','Segoe UI',Arial,Helvetica,sans-serif"
         font-size="110" font-weight="900"
         fill="url(#textGrad)"
         letter-spacing="-3">Aria</text>
-
-  <!-- Tagline — smaller than Aria, more spaced -->
   <text x="256" y="180"
         font-family="'Inter','Segoe UI',Arial,Helvetica,sans-serif"
         font-size="18" font-weight="500"
         fill="#b8b2d6"
         letter-spacing="3.5">YOUR VOICE, UNDERSTOOD.</text>
-
-  <!-- Accent dot -->
   <circle cx="450" cy="128" r="7" fill="#FF6BD6" opacity="0.95"/>
 </svg>
 """
@@ -249,7 +236,6 @@ st.markdown(
         margin-bottom: 1.2rem;
     }
 
-    /* Style st.audio_input container as a big centered card */
     div[data-testid="stAudioInput"] {
         background: linear-gradient(180deg, rgba(155,107,255,0.09) 0%, rgba(107,63,217,0.05) 100%);
         border: 1px solid rgba(155, 107, 255, 0.28);
@@ -272,7 +258,6 @@ st.markdown(
         font-size: 0.9rem !important;
         margin-bottom: 0.5rem !important;
     }
-    /* Enlarge the record button inside the audio input */
     div[data-testid="stAudioInput"] button {
         width: 52px !important;
         height: 52px !important;
@@ -304,6 +289,20 @@ st.markdown(
     section[data-testid="stSidebar"] {
         background: #0d0918;
         border-right: 1px solid rgba(255,255,255,0.06);
+        width: 340px !important;
+    }
+    section[data-testid="stSidebar"] .block-container {
+        padding-top: 1rem;
+    }
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] div {
+        color: #d8d3f0;
+    }
+    section[data-testid="stSidebar"] small,
+    section[data-testid="stSidebar"] .stCaption {
+        color: #8b84b5 !important;
     }
     </style>
     """,
@@ -395,7 +394,7 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# HEADER — bigger logo
+# HEADER — big logo
 # ==========================================
 
 st.markdown(
@@ -455,7 +454,6 @@ def render_orb(status: str):
 
 render_orb(st.session_state.status)
 
-# Recorder card labels
 st.markdown(
     '<div class="recorder-title">🎤 Speak to Aria</div>'
     '<div class="recorder-hint">Click the mic · Speak · Click again to send</div>',
@@ -468,7 +466,6 @@ audio = st.audio_input(
     label_visibility="collapsed",
 )
 
-# Recent conversation
 if st.session_state.history:
     st.markdown("#### Recent")
     for entry in st.session_state.history[-3:]:
@@ -484,7 +481,6 @@ if st.session_state.history:
 if audio is not None:
     st.audio(audio)
 
-    # Speech to text
     st.session_state.status = "listening"
     render_orb("listening")
 
@@ -509,7 +505,6 @@ if audio is not None:
     with st.chat_message("user", avatar="🎙️"):
         st.write(user_text)
 
-    # AI response
     st.session_state.status = "thinking"
     render_orb("thinking")
 
