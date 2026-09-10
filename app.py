@@ -153,13 +153,13 @@ if "status" not in st.session_state:
     st.session_state.status = "idle"
 
 # ==========================================
-# STYLE — sidebar forced visible
+# STYLE
 # ==========================================
 
 st.markdown(
     """
     <style>
-    /* Hide chrome but KEEP the sidebar toggle functional */
+    /* Hide chrome but keep sidebar toggle working */
     #MainMenu, footer {visibility: hidden;}
     header[data-testid="stHeader"] {background: transparent; height: 0;}
 
@@ -168,30 +168,11 @@ st.markdown(
         color: #EDEBFF;
     }
 
-    /* ---------- FORCE SIDEBAR VISIBLE ---------- */
+    /* ---------- Sidebar — visible by default, toggle-able ---------- */
     section[data-testid="stSidebar"] {
-        display: block !important;
-        visibility: visible !important;
-        transform: none !important;
-        min-width: 340px !important;
-        max-width: 340px !important;
-        width: 340px !important;
         background: #0d0918 !important;
         border-right: 1px solid rgba(255,255,255,0.06);
-        z-index: 100 !important;
     }
-
-    /* Keep the collapse arrow visible so users can toggle if they want */
-    button[data-testid="stSidebarCollapseButton"],
-    button[data-testid="collapsedControl"],
-    div[data-testid="collapsedControl"] {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        z-index: 999 !important;
-        color: #d8d3f0 !important;
-    }
-
     section[data-testid="stSidebar"] .block-container {
         padding-top: 1rem;
     }
@@ -204,6 +185,15 @@ st.markdown(
     section[data-testid="stSidebar"] small,
     section[data-testid="stSidebar"] .stCaption {
         color: #8b84b5 !important;
+    }
+
+    /* Make the toggle arrow visible & styled */
+    button[data-testid="stSidebarCollapseButton"],
+    button[data-testid="collapsedControl"] {
+        visibility: visible !important;
+        opacity: 1 !important;
+        color: #d8d3f0 !important;
+        z-index: 999 !important;
     }
 
     /* ---------- Header logo ---------- */
@@ -283,8 +273,7 @@ st.markdown(
         padding: 1.4rem 1.6rem !important;
         margin: 0 auto !important;
         max-width: 520px !important;
-        box-shadow: 0 12px 40px rgba(107, 63, 217, 0.22),
-                    inset 0 1px 0 rgba(255,255,255,0.04);
+        box-shadow: 0 12px 40px rgba(107, 63, 217, 0.22);
     }
     div[data-testid="stAudioInput"]:hover {
         border-color: rgba(155, 107, 255, 0.55);
