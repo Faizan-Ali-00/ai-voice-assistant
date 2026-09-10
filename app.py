@@ -1,6 +1,7 @@
 import os
 import time
 import uuid
+import base64
 from datetime import datetime
 
 import streamlit as st
@@ -15,6 +16,122 @@ APP_NAME = "Aria"
 APP_TAGLINE = "Your Voice, Understood."
 
 # ==========================================
+# LOGO — embedded directly as SVG strings
+# (no external files needed; keeps the repo to a single script)
+# ==========================================
+
+LOGO_SVG = """
+<svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="orbGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#d4c5ff"/>
+      <stop offset="45%" stop-color="#9a6bff"/>
+      <stop offset="80%" stop-color="#6b3fd9"/>
+      <stop offset="100%" stop-color="#2b1256"/>
+    </radialGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#A78BFF"/>
+      <stop offset="50%" stop-color="#FF6BD6"/>
+      <stop offset="100%" stop-color="#6BD6FF"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="560" height="200" fill="#0b0715"/>
+
+  <!-- Glowing orb -->
+  <g filter="url(#glow)">
+    <circle cx="100" cy="100" r="66" fill="url(#orbGrad)"/>
+  </g>
+
+  <!-- Subtle inner ring -->
+  <circle cx="100" cy="100" r="58" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1.5"/>
+
+  <!-- Voice bars (soundwave) -->
+  <g stroke="#f5f1ff" stroke-width="6" stroke-linecap="round" opacity="0.95">
+    <line x1="68"  y1="92"  x2="68"  y2="108"/>
+    <line x1="82"  y1="78"  x2="82"  y2="122"/>
+    <line x1="96"  y1="62"  x2="96"  y2="138"/>
+    <line x1="110" y1="76"  x2="110" y2="124"/>
+    <line x1="124" y1="88"  x2="124" y2="112"/>
+  </g>
+
+  <!-- Wordmark "Aria" -->
+  <text x="200" y="116"
+        font-family="'Inter','Segoe UI',Arial,Helvetica,sans-serif"
+        font-size="78" font-weight="900"
+        fill="url(#textGrad)"
+        letter-spacing="-1">Aria</text>
+
+  <!-- Tagline -->
+  <text x="205" y="148"
+        font-family="'Inter','Segoe UI',Arial,Helvetica,sans-serif"
+        font-size="17" font-weight="500"
+        fill="#b8b2d6"
+        letter-spacing="2">YOUR VOICE, UNDERSTOOD.</text>
+
+  <!-- Small accent dot -->
+  <circle cx="325" cy="110" r="5" fill="#FF6BD6" opacity="0.9"/>
+</svg>
+"""
+
+ICON_SVG = """
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="orbGrad2" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#d4c5ff"/>
+      <stop offset="45%" stop-color="#9a6bff"/>
+      <stop offset="80%" stop-color="#6b3fd9"/>
+      <stop offset="100%" stop-color="#2b1256"/>
+    </radialGradient>
+    <filter id="glow2" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="9" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect width="200" height="200" rx="44" fill="#0b0715"/>
+
+  <!-- Glowing orb -->
+  <g filter="url(#glow2)">
+    <circle cx="100" cy="100" r="74" fill="url(#orbGrad2)"/>
+  </g>
+
+  <!-- Subtle inner ring -->
+  <circle cx="100" cy="100" r="64" fill="none" stroke="#ffffff" stroke-opacity="0.15" stroke-width="2"/>
+
+  <!-- Voice bars -->
+  <g stroke="#f5f1ff" stroke-width="9" stroke-linecap="round" opacity="0.95">
+    <line x1="62"  y1="90"  x2="62"  y2="110"/>
+    <line x1="80"  y1="70"  x2="80"  y2="130"/>
+    <line x1="100" y1="54"  x2="100" y2="146"/>
+    <line x1="120" y1="72"  x2="120" y2="128"/>
+    <line x1="138" y1="92"  x2="138" y2="108"/>
+  </g>
+</svg>
+"""
+
+
+def svg_to_data_uri(svg_string: str) -> str:
+    """Convert an inline SVG string to a base64 data URI for embedding in <img> tags."""
+    encoded = base64.b64encode(svg_string.strip().encode("utf-8")).decode("utf-8")
+    return f"data:image/svg+xml;base64,{encoded}"
+
+
+LOGO_DATA_URI = svg_to_data_uri(LOGO_SVG)
+ICON_DATA_URI = svg_to_data_uri(ICON_SVG)
+
+# ==========================================
 # LOAD ENVIRONMENT
 # ==========================================
 
@@ -27,7 +144,7 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 
 st.set_page_config(
     page_title=f"{APP_NAME} — Voice Assistant",
-    page_icon="🎙️",
+    page_icon=ICON_DATA_URI if ICON_DATA_URI else "🎙️",
     layout="centered",
     initial_sidebar_state="expanded",
 )
@@ -162,7 +279,22 @@ client = InferenceClient(provider="auto", api_key=HF_TOKEN)
 # ==========================================
 
 with st.sidebar:
-    st.markdown(f"## 🎙️ {APP_NAME}")
+    if ICON_DATA_URI:
+        st.markdown(
+            f"""
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:-6px;">
+                <img src="{ICON_DATA_URI}" style="width:38px; height:38px; border-radius:10px;">
+                <span style="font-size:1.3rem; font-weight:800;
+                             background:linear-gradient(90deg,#8A6BFF,#FF6BD6,#6BD6FF);
+                             -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+                    {APP_NAME}
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(f"## 🎙️ {APP_NAME}")
     st.caption(APP_TAGLINE)
     st.divider()
 
@@ -219,15 +351,25 @@ with st.sidebar:
 # HEADER
 # ==========================================
 
-st.markdown(
-    f"""
-    <div class="aria-header">
-        <div class="aria-title">{APP_NAME}</div>
-        <div class="aria-tagline">{APP_TAGLINE}</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+if LOGO_DATA_URI:
+    st.markdown(
+        f"""
+        <div class="aria-header">
+            <img src="{LOGO_DATA_URI}" style="max-width:340px; width:100%; height:auto;">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        f"""
+        <div class="aria-header">
+            <div class="aria-title">{APP_NAME}</div>
+            <div class="aria-tagline">{APP_TAGLINE}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # ==========================================
 # VIEW: HISTORY
@@ -280,7 +422,7 @@ render_orb(st.session_state.status)
 
 audio = st.audio_input("🎤 Speak to Aria", sample_rate=16000)
 
-# Show recent chat bubbles (last 6 exchanges) above the input result
+# Show recent chat bubbles (last 3 exchanges) above the input result
 if st.session_state.history:
     st.markdown("#### Recent")
     for entry in st.session_state.history[-3:]:
