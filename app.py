@@ -153,20 +153,60 @@ if "status" not in st.session_state:
     st.session_state.status = "idle"
 
 # ==========================================
-# STYLE
+# STYLE — sidebar forced visible
 # ==========================================
 
 st.markdown(
     """
     <style>
-    #MainMenu, footer, header {visibility: hidden;}
+    /* Hide chrome but KEEP the sidebar toggle functional */
+    #MainMenu, footer {visibility: hidden;}
+    header[data-testid="stHeader"] {background: transparent; height: 0;}
 
     .stApp {
         background: radial-gradient(circle at top, #1b1030 0%, #0b0715 65%, #050308 100%);
         color: #EDEBFF;
     }
 
-    /* ---------- Header ---------- */
+    /* ---------- FORCE SIDEBAR VISIBLE ---------- */
+    section[data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
+        transform: none !important;
+        min-width: 340px !important;
+        max-width: 340px !important;
+        width: 340px !important;
+        background: #0d0918 !important;
+        border-right: 1px solid rgba(255,255,255,0.06);
+        z-index: 100 !important;
+    }
+
+    /* Keep the collapse arrow visible so users can toggle if they want */
+    button[data-testid="stSidebarCollapseButton"],
+    button[data-testid="collapsedControl"],
+    div[data-testid="collapsedControl"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 999 !important;
+        color: #d8d3f0 !important;
+    }
+
+    section[data-testid="stSidebar"] .block-container {
+        padding-top: 1rem;
+    }
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] div {
+        color: #d8d3f0;
+    }
+    section[data-testid="stSidebar"] small,
+    section[data-testid="stSidebar"] .stCaption {
+        color: #8b84b5 !important;
+    }
+
+    /* ---------- Header logo ---------- */
     .aria-header {
         display: flex;
         justify-content: center;
@@ -220,7 +260,7 @@ st.markdown(
         letter-spacing: 0.6px;
     }
 
-    /* ---------- Voice recorder card ---------- */
+    /* ---------- Voice recorder ---------- */
     .recorder-title {
         text-align: center;
         font-size: 1.05rem;
@@ -245,18 +285,9 @@ st.markdown(
         max-width: 520px !important;
         box-shadow: 0 12px 40px rgba(107, 63, 217, 0.22),
                     inset 0 1px 0 rgba(255,255,255,0.04);
-        transition: all 0.25s ease;
     }
     div[data-testid="stAudioInput"]:hover {
         border-color: rgba(155, 107, 255, 0.55);
-        box-shadow: 0 16px 50px rgba(107, 63, 217, 0.35),
-                    inset 0 1px 0 rgba(255,255,255,0.06);
-    }
-    div[data-testid="stAudioInput"] > label {
-        color: #cfc9f0 !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        margin-bottom: 0.5rem !important;
     }
     div[data-testid="stAudioInput"] button {
         width: 52px !important;
@@ -265,16 +296,6 @@ st.markdown(
         background: linear-gradient(135deg, #8A6BFF 0%, #6b3fd9 100%) !important;
         border: none !important;
         box-shadow: 0 6px 22px rgba(138, 107, 255, 0.55) !important;
-        transition: all 0.2s ease !important;
-    }
-    div[data-testid="stAudioInput"] button:hover {
-        transform: scale(1.06) !important;
-        box-shadow: 0 10px 30px rgba(138, 107, 255, 0.75) !important;
-    }
-    div[data-testid="stAudioInput"] button svg {
-        color: #ffffff !important;
-        width: 22px !important;
-        height: 22px !important;
     }
 
     /* ---------- Chat bubbles ---------- */
@@ -283,26 +304,6 @@ st.markdown(
         border-radius: 14px;
         border: 1px solid rgba(255,255,255,0.07);
         padding: 0.9rem 1.1rem;
-    }
-
-    /* ---------- Sidebar ---------- */
-    section[data-testid="stSidebar"] {
-        background: #0d0918;
-        border-right: 1px solid rgba(255,255,255,0.06);
-        width: 340px !important;
-    }
-    section[data-testid="stSidebar"] .block-container {
-        padding-top: 1rem;
-    }
-    section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] span,
-    section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] div {
-        color: #d8d3f0;
-    }
-    section[data-testid="stSidebar"] small,
-    section[data-testid="stSidebar"] .stCaption {
-        color: #8b84b5 !important;
     }
     </style>
     """,
