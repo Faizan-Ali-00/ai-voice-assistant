@@ -6,7 +6,13 @@ from datetime import datetime
 
 import streamlit as st
 from dotenv import load_dotenv
-from huggingface_hub import InferenceClient
+
+# --- Provider SDKs ---
+from groq import Groq
+from google import genai
+from google.genai import types
+import httpx
+import requests
 
 # ==========================================
 # APP IDENTITY
@@ -113,7 +119,172 @@ ICON_DATA_URI = svg_to_data_uri(ICON_SVG)
 # ==========================================
 
 load_dotenv()
-HF_TOKEN = os.getenv("HF_TOKEN")
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+# ==========================================
+# PROVIDER FALLBACK SYSTEM
+# ==========================================
+
+class MultiProvider:
+    """Multi-provider fallback for both STT and chat completions."""
+
+    def __init__(self):
+        self.groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+        self.gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+        self.openrouter_key = OPENROUTER_API_KEY
+
+    # ---------- SPEECH-TO-TEXT with fallback ----------
+    def transcribe(self, audio_bytes, model="whisper-large-v3"):
+        providers = []
+
+        if self.groq_client:
+            providers.append(("Groq", self._transcribe_groq))
+        if self.gemini_client:
+            providers.append(("Gemini", self._transcribe_gemini))
+        if self.openrouter_key:
+            providers.append(("OpenRouter", self._transcribe_openrouter))
+
+        last_error = None
+        for name, func in providers:
+            try:
+                result = func(audio_bytes, model)
+                if result and result.strip():
+                    return result, name
+            except Exception as e:
+                last_error = f"{name}: {e}"
+                continue
+
+        raise Exception(f"All STT providers failed. Last error: {last_error}")
+
+    def _transcribe_groq(self, audio_bytes, model):
+        transcription = self.groq_client.audio.transcriptions.create(
+            file=("audio.wav", audio_bytes),
+            model=model,
+        )
+        return transcription.text
+
+    def _transcribe_gemini(self, audio_bytes, model):
+        """Gemini STT via multimodal input [citation:3][citation:17]."""
+        response = self.gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                "Transcribe this audio exactly. Output only the transcript text, nothing else.",
+                types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
+            ],
+        )
+        return response.text
+
+    def _transcribe_openrouter(self, audio_bytes, model):
+        """OpenRouter STT endpoint [citation:13][citation:18]."""
+        audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/audio/transcriptions",
+            headers={
+                "Authorization": f"Bearer {self.openrouter_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "openai/whisper-large-v3",
+                "input_audio": {"data": audio_b64, "format": "wav"},
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return resp.json()["text"]
+
+    # ---------- CHAT with fallback ----------
+    def chat(self, messages, model="openai/gpt-oss-120b", max_tokens=1200, temperature=0.7):
+        providers = []
+
+        if self.groq_client:
+            providers.append(("Groq", self._chat_groq))
+        if self.gemini_client:
+            providers.append(("Gemini", self._chat_gemini))
+        if self.openrouter_key:
+            providers.append(("OpenRouter", self._chat_openrouter))
+
+        last_error = None
+        for name, func in providers:
+            try:
+                result = func(messages, model, max_tokens, temperature)
+                if result and result.strip():
+                    return result, name
+            except Exception as e:
+                last_error = f"{name}: {e}"
+                continue
+
+        raise Exception(f"All chat providers failed. Last error: {last_error}")
+
+    def _chat_groq(self, messages, model, max_tokens, temperature):
+        response = self.groq_client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return response.choices[0].message.content
+
+    def _chat_gemini(self, messages, model, max_tokens, temperature):
+        """Gemini chat via OpenAI-compatible endpoint [citation:23]."""
+        system_prompt = ""
+        user_messages = []
+        for m in messages:
+            if m["role"] == "system":
+                system_prompt = m["content"]
+            else:
+                user_messages.append(m)
+
+        contents = []
+        if system_prompt:
+            contents.append(f"System: {system_prompt}")
+        for m in user_messages:
+            contents.append(m["content"])
+
+        response = self.gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents="\n\n".join(contents),
+        )
+        return response.text
+
+    def _chat_openrouter(self, messages, model, max_tokens, temperature):
+        """OpenRouter chat completions [citation:13]."""
+        # Map Groq model names to OpenRouter free models
+        openrouter_model = "openai/gpt-oss-120b:free"
+        if "llama" in model.lower():
+            openrouter_model = "meta-llama/llama-3.3-70b-instruct:free"
+
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.openrouter_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": openrouter_model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+
+# Initialize multi-provider
+provider = MultiProvider()
+
+# Check at least one provider is available
+if not any([GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY]):
+    st.error("No AI provider API keys found.")
+    st.info("Add at least ONE of these to your .env file:\n\n"
+            "GROQ_API_KEY=your_key\n"
+            "GEMINI_API_KEY=your_key\n"
+            "OPENROUTER_API_KEY=your_key")
+    st.stop()
 
 # ==========================================
 # PAGE SETTINGS
@@ -146,7 +317,7 @@ if "system_prompt" not in st.session_state:
         "stop prematurely."
     )
 if "asr_model" not in st.session_state:
-    st.session_state.asr_model = "openai/whisper-large-v3"
+    st.session_state.asr_model = "whisper-large-v3"
 if "view" not in st.session_state:
     st.session_state.view = "assistant"
 if "status" not in st.session_state:
@@ -159,7 +330,6 @@ if "status" not in st.session_state:
 st.markdown(
     """
     <style>
-    /* Hide chrome but keep sidebar toggle working */
     #MainMenu, footer {visibility: hidden;}
     header[data-testid="stHeader"] {background: transparent; height: 0;}
 
@@ -168,26 +338,18 @@ st.markdown(
         color: #EDEBFF;
     }
 
-    /* ---------- Sidebar — visible by default, toggle-able ---------- */
     section[data-testid="stSidebar"] {
         background: #0d0918 !important;
         border-right: 1px solid rgba(255,255,255,0.06);
     }
-    section[data-testid="stSidebar"] .block-container {
-        padding-top: 1rem;
-    }
+    section[data-testid="stSidebar"] .block-container { padding-top: 1rem; }
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] span,
     section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] div {
-        color: #d8d3f0;
-    }
+    section[data-testid="stSidebar"] div { color: #d8d3f0; }
     section[data-testid="stSidebar"] small,
-    section[data-testid="stSidebar"] .stCaption {
-        color: #8b84b5 !important;
-    }
+    section[data-testid="stSidebar"] .stCaption { color: #8b84b5 !important; }
 
-    /* Make the toggle arrow visible & styled */
     button[data-testid="stSidebarCollapseButton"],
     button[data-testid="collapsedControl"] {
         visibility: visible !important;
@@ -196,7 +358,6 @@ st.markdown(
         z-index: 999 !important;
     }
 
-    /* ---------- Header logo ---------- */
     .aria-header {
         display: flex;
         justify-content: center;
@@ -209,7 +370,6 @@ st.markdown(
         filter: drop-shadow(0 20px 60px rgba(150, 100, 255, 0.35));
     }
 
-    /* ---------- Orb ---------- */
     .orb-wrap {
         display: flex;
         justify-content: center;
@@ -229,14 +389,8 @@ st.markdown(
     .orb.thinking {
         animation: spin 2.2s linear infinite, glow 1.4s infinite ease-in-out;
     }
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.12); }
-    }
-    @keyframes spin {
-        from { filter: hue-rotate(0deg); }
-        to { filter: hue-rotate(360deg); }
-    }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+    @keyframes spin { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
     @keyframes glow {
         0%, 100% { box-shadow: 0 0 40px rgba(150,100,255,0.5); }
         50% { box-shadow: 0 0 70px rgba(107,214,255,0.85); }
@@ -250,7 +404,6 @@ st.markdown(
         letter-spacing: 0.6px;
     }
 
-    /* ---------- Voice recorder ---------- */
     .recorder-title {
         text-align: center;
         font-size: 1.05rem;
@@ -275,9 +428,7 @@ st.markdown(
         max-width: 520px !important;
         box-shadow: 0 12px 40px rgba(107, 63, 217, 0.22);
     }
-    div[data-testid="stAudioInput"]:hover {
-        border-color: rgba(155, 107, 255, 0.55);
-    }
+    div[data-testid="stAudioInput"]:hover { border-color: rgba(155, 107, 255, 0.55); }
     div[data-testid="stAudioInput"] button {
         width: 52px !important;
         height: 52px !important;
@@ -287,7 +438,6 @@ st.markdown(
         box-shadow: 0 6px 22px rgba(138, 107, 255, 0.55) !important;
     }
 
-    /* ---------- Chat bubbles ---------- */
     div[data-testid="stChatMessage"] {
         background: rgba(255,255,255,0.045);
         border-radius: 14px;
@@ -298,17 +448,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
-# ==========================================
-# GUARD: TOKEN CHECK
-# ==========================================
-
-if not HF_TOKEN:
-    st.error("Hugging Face token not found.")
-    st.info("Make sure your .env file contains:\n\nHF_TOKEN=your_token")
-    st.stop()
-
-client = InferenceClient(provider="auto", api_key=HF_TOKEN)
 
 # ==========================================
 # SIDEBAR
@@ -351,16 +490,19 @@ with st.sidebar:
     with st.expander("⚙️ Settings", expanded=(st.session_state.view == "assistant")):
         st.session_state.model = st.selectbox(
             "AI model",
-            options=["openai/gpt-oss-120b", "openai/gpt-oss-20b", "meta-llama/Llama-3.3-70B-Instruct"],
-            index=["openai/gpt-oss-120b", "openai/gpt-oss-20b", "meta-llama/Llama-3.3-70B-Instruct"]
+            options=["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"],
+            index=["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
                   .index(st.session_state.model)
-                  if st.session_state.model in ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "meta-llama/Llama-3.3-70B-Instruct"]
+                  if st.session_state.model in ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
                   else 0,
         )
         st.session_state.asr_model = st.selectbox(
             "Speech recognition model",
-            options=["openai/whisper-large-v3", "openai/whisper-large-v3-turbo"],
-            index=0 if st.session_state.asr_model == "openai/whisper-large-v3" else 1,
+            options=["whisper-large-v3", "whisper-large-v3-turbo"],
+            index=["whisper-large-v3", "whisper-large-v3-turbo"]
+                  .index(st.session_state.asr_model)
+                  if st.session_state.asr_model in ["whisper-large-v3", "whisper-large-v3-turbo"]
+                  else 0,
         )
         st.session_state.max_tokens = st.slider(
             "Max response length (tokens)", min_value=200, max_value=4000,
@@ -378,6 +520,14 @@ with st.sidebar:
         st.caption(f"Model: `{st.session_state.model}`")
 
     st.divider()
+
+    # Show which providers are active
+    active = []
+    if GROQ_API_KEY: active.append("Groq")
+    if GEMINI_API_KEY: active.append("Gemini")
+    if OPENROUTER_API_KEY: active.append("OpenRouter")
+    st.caption(f"🔗 Providers: {', '.join(active) if active else 'None'}")
+
     st.caption(f"💬 {len(st.session_state.history)} conversation(s) saved this session")
     if st.button("🗑️ Clear history", use_container_width=True, disabled=len(st.session_state.history) == 0):
         st.session_state.history = []
@@ -476,14 +626,13 @@ if audio is not None:
 
     with st.spinner("🎧 Understanding your voice..."):
         try:
-            transcription = client.automatic_speech_recognition(
-                audio=audio.getvalue(),
-                model=st.session_state.asr_model,
+            user_text, stt_provider = provider.transcribe(
+                audio.getvalue(),
+                st.session_state.asr_model,
             )
-            user_text = transcription.text.strip()
         except Exception as e:
             st.session_state.status = "idle"
-            st.error("Speech recognition failed.")
+            st.error("Speech recognition failed on all providers.")
             st.code(str(e))
             st.stop()
 
@@ -500,19 +649,18 @@ if audio is not None:
 
     with st.spinner("🤖 Aria is thinking..."):
         try:
-            response = client.chat.completions.create(
-                model=st.session_state.model,
+            answer, chat_provider = provider.chat(
                 messages=[
                     {"role": "system", "content": st.session_state.system_prompt},
                     {"role": "user", "content": user_text},
                 ],
+                model=st.session_state.model,
                 max_tokens=st.session_state.max_tokens,
                 temperature=st.session_state.temperature,
             )
-            answer = response.choices[0].message.content
         except Exception as e:
             st.session_state.status = "idle"
-            st.error("AI response failed.")
+            st.error("AI response failed on all providers.")
             st.code(str(e))
             st.stop()
 
